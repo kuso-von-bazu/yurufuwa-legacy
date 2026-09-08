@@ -161,6 +161,18 @@ function getRate() {
   }).catch(() => ({ rate: RATE_FALLBACK, src: '既定値' }));
   return ratePromise;
 }
+// 外部API(晴れる屋/Scryfall)への同時リクエストを2並列・300ms間隔に制限
+const limiter = { active: 0, max: 2, gap: 300, queue: [] };
+function withLimit(fn) {
+  return new Promise((resolve, reject) => {
+    const run = async () => {
+      limiter.active++;
+      try { resolve(await fn()); } catch (e) { reject(e); }
+      finally { await sleep(limiter.gap); limiter.active--; const next = limiter.queue.shift(); if (next) next(); }
+    };
+    if (limiter.active < limiter.max) run(); else limiter.queue.push(run);
+  });
+}
 const priceInflight = new Map();
 function priceCard(rec) {
   if (rec.basic) return Promise.resolve({ price: 0, src: 'basic' });
@@ -169,9 +181,9 @@ function priceCard(rec) {
   if (priceInflight.has(key)) return priceInflight.get(key);
   const p = (async () => {
     let res = null;
-    try { res = await fetchHareruya(rec); } catch (e) { console.warn('hareruya', rec.name, e); }
+    try { res = await withLimit(() => fetchHareruya(rec)); } catch (e) { console.warn('hareruya', rec.name, e); }
     if (!res) {
-      try { const rate = await getRate(); const s = await fetchScryfallMin(rec); if (s) res = { price: Math.ceil(s.usd * rate.rate), src: 'scryfall', usd: s.usd, set: s.set }; } catch (e) {}
+      try { const rate = await getRate(); const s = await withLimit(() => fetchScryfallMin(rec)); if (s) res = { price: Math.ceil(s.usd * rate.rate), src: 'scryfall', usd: s.usd, set: s.set }; } catch (e) {}
     }
     if (!res) res = { price: null, src: 'none' };
     store.set(key, res); priceInflight.delete(key);
