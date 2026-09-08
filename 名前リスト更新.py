@@ -5,7 +5,7 @@
 
 サイトの検索→選択UIはこのファイルだけで動く(オフライン名寄せ)。新セット発売後に実行して再公開する。
 """
-import json, time, datetime, urllib.request, urllib.parse, sys, os
+import json, re, time, datetime, urllib.request, urllib.parse, urllib.error, sys, os
 
 SCRYFALL = 'https://api.scryfall.com/cards/search'
 UA = 'yurufuwa-legacy-namelist/1.0'
@@ -48,11 +48,13 @@ def printed_ja(c):
     """日本語版の印刷名。両面/分割は面ごとの印刷名を '/' で連結。英語のままなら '' (Scryfallのデータ欠け)。"""
     if c.get('lang') != 'ja':
         return ''
-    if c.get('printed_name') and c['printed_name'] != c['name']:
+    jp = re.compile(r'[\u3040-\u30ff\u4e00-\u9fff\uff66-\uff9f]')
+    if c.get('printed_name') and jp.search(c['printed_name']):
         return c['printed_name']
     faces = c.get('card_faces', [])
-    names = [f.get('printed_name') or '' for f in faces]
-    if faces and any(n and n != f['name'] for n, f in zip(names, faces)):
+    names = [(f.get('printed_name') or '') for f in faces]
+    names = [n if jp.search(n) else '' for n in names]
+    if any(names):
         return '/'.join(n for n in names if n)
     return ''
 
