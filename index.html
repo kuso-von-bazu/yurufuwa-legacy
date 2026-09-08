@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ゆるふわレガシー 階級判定</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>ゆるふわレガシー 階級判定</h1>
+  <p>カードを検索して足すだけ。晴れる屋の最安価格でデッキの階級を判定し、証明コードを発行します。</p>
+  <div class="legend" id="legend"></div>
+</header>
+
+<div class="wrap">
+<nav class="tabs">
+  <button data-tab="judge" class="on">デッキ構築・判定</button>
+  <button data-tab="verify">検証(相手のコード)</button>
+  <button data-tab="rules">ルール</button>
+</nav>
+
+<!-- ===== 判定 ===== -->
+<section class="panel on" id="tab-judge">
+  <div class="grid2">
+    <div class="card">
+      <h2>1. カードを検索して足す</h2>
+      <div class="searchbox">
+        <input type="text" id="q" placeholder="カード名(英語でも日本語でも途中まででOK) 例: 稲妻 / bolt" autocomplete="off">
+        <div class="dropdown" id="dd" hidden></div>
+      </div>
+      <p class="mute">Enter=メインに追加 / Shift+Enter=サイドに追加 / ↑↓で選択。価格は追加した瞬間に取得して合計に反映します。</p>
+      <div class="lists">
+        <div class="list">
+          <div class="listhead"><b>メイン</b> <span id="mainCount">0</span>枚 <span class="mute">(60枚)</span></div>
+          <div id="mainList" class="rows"><div class="empty">まだカードがありません</div></div>
+        </div>
+        <div class="list">
+          <div class="listhead"><b>サイドボード</b> <span id="sideCount">0</span>枚 <span class="mute">(15枚まで)</span></div>
+          <div id="sideList" class="rows"><div class="empty">サイドは空です</div></div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="ghost" id="basicsBtn">基本土地をまとめて足す</button>
+        <button class="ghost" id="sample">サンプルデッキ</button>
+        <button class="ghost" id="clear">全部消す</button>
+      </div>
+      <details class="import">
+        <summary>テキストで貼り付け / 書き出し(アリーナ・Moxfield・晴れる屋形式)</summary>
+        <textarea id="deck" placeholder="4 Brainstorm
+4 意志の力
+4 《稲妻/Lightning Bolt》
+...
+
+Sideboard
+2 Pyroblast"></textarea>
+        <div class="btns">
+          <button class="ghost" id="importBtn">このテキストで置き換える</button>
+          <button class="ghost" id="exportBtn">今のデッキをテキストに書き出す</button>
+          <button class="ghost" data-copy="text">テキストをコピー</button>
+        </div>
+      </details>
+      <div class="opts">
+        <label><input type="checkbox" id="grace" checked> 猶予10%を適用</label>
+        <label>為替(USD→JPY) <input type="number" id="rate" step="0.1" placeholder="自動"></label>
+        <label><input type="checkbox" id="nocache"> 価格を取り直す</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. いまの階級</h2>
+      <div class="tierbig">
+        <span class="badge big" id="liveBadge">-</span>
+        <div>
+          <div class="total"><span id="liveTotal">0</span>円 <small id="liveNote"></small></div>
+          <div class="mute" id="liveLine">カードを足すとここに合計が出ます</div>
+        </div>
+      </div>
+      <div class="progress"><div id="bar"></div></div>
+      <div class="status" id="status"></div>
+      <button class="primary" id="run">判定して証明コードを発行</button>
+      <div id="result" hidden>
+        <div id="warnings"></div>
+        <h3>証明コード</h3>
+        <div class="code" id="code">-</div>
+        <div class="btns">
+          <button class="ghost" data-copy="code">コードをコピー</button>
+          <button class="ghost" data-copy="spelltable">SpellTable用テキストをコピー</button>
+          <button class="ghost" data-copy="url">共有URLをコピー</button>
+          <button class="ghost" id="overlay">オーバーレイ画像を保存</button>
+        </div>
+        <p class="mute">SpellTableのゲーム名の先頭に貼ります。例: <code id="stExample"></code></p>
+        <div id="suggest"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="breakdownCard" hidden>
+    <h2>3. 内訳(高い順)</h2>
+    <p class="mute">価格は 非Foil・通常状態・言語問わず・在庫あり の最安。基本土地は0円。カード名をクリックすると晴れる屋の商品ページが開きます。</p>
+    <div style="overflow-x:auto"><table class="tbl" id="breakdown"></table></div>
+  </div>
+</section>
+
+<!-- ===== 検証 ===== -->
+<section class="panel" id="tab-verify">
+  <div class="grid2">
+    <div class="card">
+      <h2>相手の証明コードを検証</h2>
+      <p class="mute">コードを貼ると、階級・判定日・有効期限(30日)・チェック桁を確認します。相手のデッキリストも貼ればハッシュ照合ができます。</p>
+      <input type="text" id="vcode" placeholder="YFL1.5K.7QK3M2A9.20260908.4820.K7">
+      <p></p>
+      <textarea id="vdeck" style="min-height:200px" placeholder="(任意) 相手のデッキリスト"></textarea>
+      <p></p>
+      <button class="primary" id="vrun">検証する</button>
+      <button class="ghost" id="vprice">このリストで価格を再計算(判定タブへ)</button>
+    </div>
+    <div class="card">
+      <h2>結果</h2>
+      <div id="vresult" class="mute">-</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ルール ===== -->
+<section class="panel" id="tab-rules">
+  <div class="card rules">
+    <h2>ゆるふわレガシー v1.1 要約</h2>
+    <p>カードプールと禁止リストは<strong>レガシーそのまま</strong>。デッキ75枚の合計「最安購入価格」で階級を分け、同じ階級同士で対戦します。<br>
+    高いカードを否定するのではなく、高いカードを「上の階級」に隔離するフォーマットです。主戦場は <strong>1K〜5K級(1,000〜5,000円)</strong>。</p>
+
+    <h3>階級表</h3>
+    <table class="tbl" id="tierTable"></table>
+
+    <h3>価格の決め方</h3>
+    <ul>
+      <li>晴れる屋通販の <strong>非Foil・通常状態・言語問わず・在庫あり</strong> の最安販売価格。在庫なしなら在庫なし込みの最安、取扱なしなら Scryfall の紙最安USD×為替。</li>
+      <li><strong>基本土地は0円</strong>(氷雪基本・荒地を含む)。</li>
+      <li>どの版を実際に使ってもOK。判定は常に最安版。判定するのは資産価値ではなく「今からこのデッキを組む最低費用」。</li>
+      <li>メイン+サイドを合算。分割/両面/出来事カードは1枚扱い。</li>
+    </ul>
+
+    <h3>ゆるふわ判定(価格変動対策)</h3>
+    <ul>
+      <li>階級は判定日の価格で決まり、証明コードは <strong>30日間有効</strong>。</li>
+      <li>合計が上限の <strong>110%以内なら同じ階級</strong>(猶予)。主催者は「猶予なし」を宣言できる。</li>
+      <li>値下がりは即反映(下の階級になるだけ)。急騰しても有効期間内のコードは有効。</li>
+    </ul>
+
+    <h3>対戦・イベント</h3>
+    <ul>
+      <li>卓ごとに階級を決める(例「3K卓」)。参加できるのは <strong>デッキ階級 ≤ 卓の階級</strong>。</li>
+      <li>対戦前に証明コードを見せる。相手は「検証」タブで確認。</li>
+      <li>1枚でも変えたら再判定(ハッシュが変わる)。</li>
+      <li>主催者オプション: 猶予あり/なし、実物ルール(対面既定)/プロキシ可(オンライン推奨)。プロキシ可でも階級は実カード価格で判定。</li>
+    </ul>
+
+    <h3>SpellTable / Discord での使い方</h3>
+    <ol>
+      <li>判定して「SpellTable用テキストをコピー」。</li>
+      <li>ゲーム名の先頭に貼る: <code>[ゆるふわ 3K] YFL1.3K.XXXXXXXX.20260908.2860.K7</code></li>
+      <li>卓に入る人は階級に合うデッキで参加し、自分のコードをチャットに貼る。</li>
+      <li>配信する人は「オーバーレイ画像を保存」でバッジPNGを出してOBSに載せる。</li>
+    </ol>
+
+    <h3>証明コード</h3>
+    <p><code>YFL1.階級.デッキハッシュ8桁.判定日.合計円.チェック2桁</code><br>
+    ハッシュはカード名×枚数(版は無視)から計算。本人のデッキリストとコードがあれば誰でも再計算・照合できます。</p>
+    <p class="mute">詳細版: <a href="https://github.com/kuso-von-bazu/yurufuwa-legacy/blob/main/フォーマット仕様.md" target="_blank" rel="noopener">フォーマット仕様.md</a></p>
+  </div>
+</section>
+</div>
+
+<footer>価格データ: 晴れる屋通販 / Scryfall。本サイトは非公式のファンツールです。価格は取得時点のもので、実際の販売価格を保証しません。</footer>
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

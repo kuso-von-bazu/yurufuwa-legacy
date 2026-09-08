@@ -1,0 +1,26 @@
+4 Delver of Secrets
+4 Dragon's Rage Channeler
+4 Murktide Regent
+4 Brainstorm
+4 Ponder
+4 Lightning Bolt
+4 Daze
+4 Force of Will
+2 Counterspell
+4 Mishra's Bauble
+2 Stern Scolding
+4 Wasteland
+4 Scalding Tarn
+4 Polluted Delta
+4 Island
+2 Mountain
+2 Steam Vents
+
+Sideboard
+2 Pyroblast
+2 Surgical Extraction
+2 Meltdown
+2 Hydroblast
+2 Tormod's Crypt
+2 Blue Elemental Blast
+3 Fire // Ice
