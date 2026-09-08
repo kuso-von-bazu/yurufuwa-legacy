@@ -30,7 +30,7 @@ def fetch_all(q, label):
         out += d.get('data', [])
         print('\r%s: %d/%d (page %d)' % (label, len(out), d.get('total_cards', 0), page), end='', file=sys.stderr)
         url = d.get('next_page'); page += 1
-        time.sleep(0.11)
+        time.sleep(0.3)
     print(file=sys.stderr)
     return out
 
@@ -70,16 +70,22 @@ def fix_missing_ja(rows):
     for i, r in enumerate(todo):
         q = 'lang:ja !"%s"' % r[0].replace('"', '')
         url = SCRYFALL + '?' + urllib.parse.urlencode({'q': q, 'unique': 'prints', 'order': 'released'})
-        try:
-            d = fetch_json(url)
-        except Exception:
-            d = {}
+        d = {}
+        for attempt in range(3):
+            try:
+                d = fetch_json(url); break
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    break  # 日本語版なし
+                print('\n  http %s %s (retry %d)' % (e.code, r[0], attempt), file=sys.stderr); time.sleep(65)
+            except Exception as e:
+                print('\n  err %s %s (retry %d)' % (e, r[0], attempt), file=sys.stderr); time.sleep(65)
         for c in d.get('data', []):
             ja = printed_ja(c)
             if ja:
                 r[1] = ja; fixed += 1; break
         print('\r補修: %d/%d (直った %d)' % (i + 1, len(todo), fixed), end='', file=sys.stderr)
-        time.sleep(0.11)
+        time.sleep(0.3)
     print(file=sys.stderr)
     return fixed
 
